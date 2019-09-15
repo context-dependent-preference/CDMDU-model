@@ -22,7 +22,7 @@ coset;
 /******************************************************************************
  1. Data upload      
 - data_toy.txt
-  : We create sample data that is a total of 5,327 (n=500) consumption occasions by 500 households (hh=500). 
+  : We create sample data that is a total of 5,327 (n=5327) consumption occasions by 500 households (hh=500). 
   : We consider 10 brands (nbr-1=10) and 5 contexts.
 - ns = 2 (2-segment)
   : We seek to project preferences onto a 2-dimensional attribute space for each consumer segment. 
