@@ -1,44 +1,50 @@
 /******************************************************************************
-  2016 Marketing Science: TD06 Choice Models IV(Venue 6) Presentor: prof. Minki Kim(minki.kim@kaist.ac.kr) 
-    - get dataset from QME(2012) latest version of miller (new_miller_3Mot_DMAwts_newWhite_compo.txt) 
-    - incorporate (1) heterogenity in the brand loation matrix
-    - consider (2) local ad./ Network TV ad./ alcohol/ calorie as four control variables(fixed effect for each brand) 
-    - 1450 household, 10 brands, 5 contexts 
-    Updatee: 2017.01.02
-    Written by Junghyun Park (obeamo@kaist.ac.kr)
-******************************************************************************   
-    http://www.aptech.com/
-******************************************************************************/
+    Mapping Consumers’ Context-Dependent Consumption Preferences: 
+    A Multidimensional Unfolding Approach 
+    (3rd revision, Journal of Consumer Resesarch)
 
-new ;
-library optmum ;
-optset ;
+    Update: 2019.09.15 (context.dependent.preference@gmail.com)
+    Keywords: Context-dependent preference, multiple ideal points, factor structure approach, 
+                 context-dependent multidimensional unfolding (CDMDU) model, context-dependent iso-preference contours
+******************************************************************************   
+******************************************************************************/
 
 /******************************************************************************
- 1. Data upload                                     
+ 0. Getting Started
+- GAUSS 3.2.8+ is required to use a set of procedures
+- libeary co
+  : This enables GAUSS to find the CONSTRAINED OPTIMIZATION(co) procedures.                                  
+******************************************************************************/
+new ;
+library co; 
+coset;
+
+/******************************************************************************
+ 1. Data upload      
+- We create sample data that is a total of 5,327 consumption occasions by 500 households. 
+- We consider a this set that has 10 brands (J=10) and 5 contexts (S=5) 
+   where we seek to project preferences onto a K-dimensional attribute space (K=2, 2-segment) for each consumer segment. 
 ******************************************************************************/
 
-load dta[15615,79] = new_miller_3Mot_DMAwts_newWhite_compo_scen79_co.txt ;
+load dta[5327,79] = toy_data.txt ;
 n = rows(dta) ;
 nbr = 11 ; /* the number of brand is 10 + composite */
 id = dta[.,1] ;
 br = dta[.,4] ;
 choi = dta[.,14:23]~(1-sumc(dta[.,14:23]')) ; /* brand choice */
-chois = dta[.,79] ; /* scenario choice */
+chois = dta[.,79] ; /* consumption contexts */
 
-co = dta[.,28:31] ; /* (base context is 4) */
-co = co[.,1:3]~(1-sumc(co'))~co[.,4] ;/* four contexts (without context 1) */
+context = dta[.,28:31] ; /* (base context is 4) */
+context = context[.,1:3]~(1-sumc(context'))~context[.,4] ;/* 4 types consumption contexts (without context 1) */
 lad = dta[.,35:45] ; /* local advertisement */
-nad = dta[.,46:56] ; /* Network TV advertisement */
-alcohol = dta[.,57:67] ; /* alcohol */
-calorie = dta[.,68:78] ; /* calorie per 12 oz */
+nad = dta[.,46:56] ; /* network TV advertisement */
 
-id = delif(id, sumc(co').==0) ;
-choi = delif(choi, sumc(co').==0) ;
-n = rows(co) ; /* n is 15615 */
+id = delif(id, sumc(context').==0) ;
+choi = delif(choi, sumc(context').==0) ;
+n = rows(context) ; /* 5,327 consumption occasions */
 
 ii = 1 ;
-np = 1 ; /* np is the number of consumers */
+np = 1 ; /* 500 households */
 pid = id[1,1] ;
 do until ii == n+1 ;
 	if id[ii,1] ne pid ;
@@ -48,162 +54,30 @@ do until ii == n+1 ;
 	ii = ii+1 ;
 endo ; 
 
-clear p, scen, mpar, hh, ns, nd, rr, pp ;
+clear p, scen, hh, ns, nd, rr, pp ;
 
-hh = np ; /* the number of consumers */
-ns = 1 ; /* the number of segments */
+hh = np ; /* 500 households */
+ns = 2 ; /* 2 segments */
 p = zeros(n, ns) ;
 scen = zeros(np, ns) ;
 
 /******************************************************************************
- 2. Set the random draws                                     
+ 2. Set the random draws - REROADED                                     
 ******************************************************************************/
 
 nd = 30 ; /* the number of draws for simulated MLE */
-
-rndseed 999 ;
-het1 = rndn(hh,nd) ; /* for brand 1 */
-het2 = rndn(hh,nd) ; /* for brand 2 */
-het3 = rndn(hh,nd) ; /* for brand 3 */
-het4 = rndn(hh,nd) ; /* for brand 4 */
-het5 = rndn(hh,nd) ; /* for brand 5 */
-het6 = rndn(hh,nd) ; /* for brand 6 */
-het7 = rndn(hh,nd) ; /* for brand 7 */
-het8 = rndn(hh,nd) ; /* for brand 8 */
-het9 = rndn(hh,nd) ; /* for brand 9 */
-het10 = rndn(hh,nd) ; /* for brand 10 */
-het11 = rndn(hh,nd) ; /* local advertisement */
-het12 = rndn(hh,nd) ; /* Network TV advertisement */
-het13 = rndn(hh,nd) ; /* for alcohol */
-het14 = rndn(hh,nd) ; /* for calorie per 12 oz */
-
-het15 = rndn(hh,nd) ; /* for importance weight 1 */
-het16 = rndn(hh,nd) ; /* for importance weight 2 */
-
-
-/* This step is to ensure that each household gets the same draws for all its purchase occasions */
-nhet1 = zeros(1,nd) ;
-nhet2 = zeros(1,nd) ;
-nhet3 = zeros(1,nd) ;
-nhet4 = zeros(1,nd) ;
-nhet5 = zeros(1,nd) ;
-nhet6 = zeros(1,nd) ;
-nhet7 = zeros(1,nd) ;
-nhet8 = zeros(1,nd) ;
-nhet9 = zeros(1,nd) ;
-nhet10 = zeros(1,nd) ;
-nhet11 = zeros(1,nd) ;
-nhet12 = zeros(1,nd) ;
-nhet13 = zeros(1,nd) ; 
-nhet14 = zeros(1,nd) ;
-
-nhet15 = zeros(1,nd) ; /* for importance weight 1 */
-nhet16 = zeros(1,nd) ; /* for importance weight 2 */
-
-
-pp = id[1,1] ;
-pid = 1 ;
-ii = 1 ;
-rr = 1 ;
-do until ii == n+1 ;
-	if id[ii,1] ne pp ;
-		nhet1 = nhet1|(ones(rows(dta[rr:ii-1,.]),nd).*het1[pid,.]) ;
-		nhet2 = nhet2|(ones(rows(dta[rr:ii-1,.]),nd).*het2[pid,.]) ;
-		nhet3 = nhet3|(ones(rows(dta[rr:ii-1,.]),nd).*het3[pid,.]) ;
-		nhet4 = nhet4|(ones(rows(dta[rr:ii-1,.]),nd).*het4[pid,.]) ;
-		nhet5 = nhet5|(ones(rows(dta[rr:ii-1,.]),nd).*het5[pid,.]) ;
-		nhet6 = nhet6|(ones(rows(dta[rr:ii-1,.]),nd).*het6[pid,.]) ;
-		nhet7 = nhet7|(ones(rows(dta[rr:ii-1,.]),nd).*het7[pid,.]) ;
-		nhet8 = nhet8|(ones(rows(dta[rr:ii-1,.]),nd).*het8[pid,.]) ;
-		nhet9 = nhet9|(ones(rows(dta[rr:ii-1,.]),nd).*het9[pid,.]) ;
-		nhet10 = nhet10|(ones(rows(dta[rr:ii-1,.]),nd).*het10[pid,.]) ;
-		nhet11 = nhet11|(ones(rows(dta[rr:ii-1,.]),nd).*het11[pid,.]) ;
-		nhet12 = nhet12|(ones(rows(dta[rr:ii-1,.]),nd).*het12[pid,.]) ;
-		nhet13 = nhet13|(ones(rows(dta[rr:ii-1,.]),nd).*het13[pid,.]) ;
-		nhet14 = nhet14|(ones(rows(dta[rr:ii-1,.]),nd).*het14[pid,.]) ;
-
-		nhet15 = nhet15|(ones(rows(dta[rr:ii-1,.]),nd).*het15[pid,.]) ;
-		nhet16 = nhet16|(ones(rows(dta[rr:ii-1,.]),nd).*het16[pid,.]) ;
-
-		pid = pid+1 ;
-		pp = id[ii,1] ;
-		rr = ii ;
-	endif ;
-    
-	if ii == n ;
-		nhet1 = nhet1|(ones(rows(dta[rr:ii,.]),nd).*het1[pid,.]) ;
-		nhet2 = nhet2|(ones(rows(dta[rr:ii,.]),nd).*het2[pid,.]) ;
-		nhet3 = nhet3|(ones(rows(dta[rr:ii,.]),nd).*het3[pid,.]) ;
-		nhet4 = nhet4|(ones(rows(dta[rr:ii,.]),nd).*het4[pid,.]) ;
-		nhet5 = nhet5|(ones(rows(dta[rr:ii,.]),nd).*het5[pid,.]) ;
-		nhet6 = nhet6|(ones(rows(dta[rr:ii,.]),nd).*het6[pid,.]) ;
-		nhet7 = nhet7|(ones(rows(dta[rr:ii,.]),nd).*het7[pid,.]) ;
-		nhet8 = nhet8|(ones(rows(dta[rr:ii,.]),nd).*het8[pid,.]) ;
-		nhet9 = nhet9|(ones(rows(dta[rr:ii,.]),nd).*het9[pid,.]) ;
-		nhet10 = nhet10|(ones(rows(dta[rr:ii,.]),nd).*het10[pid,.]) ;
-        nhet11 = nhet11|(ones(rows(dta[rr:ii,.]),nd).*het11[pid,.]) ;
-        nhet12 = nhet12|(ones(rows(dta[rr:ii,.]),nd).*het12[pid,.]) ;
-        nhet13 = nhet13|(ones(rows(dta[rr:ii,.]),nd).*het13[pid,.]) ;
-        nhet14 = nhet14|(ones(rows(dta[rr:ii,.]),nd).*het14[pid,.]) ;
-
-		nhet15 = nhet15|(ones(rows(dta[rr:ii,.]),nd).*het15[pid,.]) ;
-		nhet16 = nhet16|(ones(rows(dta[rr:ii,.]),nd).*het16[pid,.]) ; 
-	endif ;
-	ii = ii+1 ;
-endo ;
-
-
-nhet1 = nhet1[2:n+1,.] ; /* Now nhet is n by nd matrix (1628 by 30) */
-nhet2 = nhet2[2:n+1,.] ;
-nhet3 = nhet3[2:n+1,.] ;
-nhet4 = nhet4[2:n+1,.] ;
-nhet5 = nhet5[2:n+1,.] ;
-nhet6 = nhet6[2:n+1,.] ;
-nhet7 = nhet7[2:n+1,.] ;
-nhet8 = nhet8[2:n+1,.] ;
-nhet9 = nhet9[2:n+1,.] ;
-nhet10 = nhet10[2:n+1,.] ;
-nhet11 = nhet11[2:n+1,.] ;
-nhet12 = nhet12[2:n+1,.] ;
-nhet13 = nhet13[2:n+1,.] ;
-nhet14 = nhet14[2:n+1,.] ;
-
-nhet15 = nhet15[2:n+1,.] ;
-nhet16 = nhet16[2:n+1,.] ;
-
-
-nhet1 = reshape(nhet1,n*nd,1) ; /* Puts all draws in n*nd by 1 matrix (48840 by 1) */
-nhet2 = reshape(nhet2,n*nd,1) ;
-nhet3 = reshape(nhet3,n*nd,1) ;
-nhet4 = reshape(nhet4,n*nd,1) ;
-nhet5 = reshape(nhet5,n*nd,1) ;
-nhet6 = reshape(nhet6,n*nd,1) ;
-nhet7 = reshape(nhet7,n*nd,1) ; 
-nhet8 = reshape(nhet8,n*nd,1) ;
-nhet9 = reshape(nhet9,n*nd,1) ;
-nhet10 = reshape(nhet10,n*nd,1) ;
-nhet11 = reshape(nhet11,n*nd,1) ;
-nhet12 = reshape(nhet12,n*nd,1) ;
-nhet13 = reshape(nhet13,n*nd,1) ;
-nhet14 = reshape(nhet14,n*nd,1) ;
-
-nhet15 = reshape(nhet15,n*nd,1) ;
-nhet16 = reshape(nhet16,n*nd,1) ; 
-
-het_1 = nhet1~nhet2~nhet3~nhet4~nhet5~nhet6~nhet7~nhet8~nhet9~nhet10 ; /* n*nd by 13 matrix (468450 by 10 brands) */
-het_2 = nhet11~nhet12~nhet13~nhet14 ; /* n*nd by 4 matrix (468450 by 4 control variables, fixed effect, do not consider demography information) */
-het = nhet15~nhet16 ; /* n by nd*2 matrix (468450 by 2) */
+load het[468450,2] = het_new_max16.txt ; /* n by nd*2 matrix (15615*100 by 2) */
 
 /******************************************************************************
  3. Make temp_het1 and temp_het2                                     
 ******************************************************************************/
 
 /* temp_het1 and temp_het2 are n by nd*25 matrix (15615 by 750) */
-temp_het1 = reshape(het[.,1],n,nd)~reshape(het[.,1],n,nd)~reshape(het[.,1],n,nd)~reshape(het[.,1],n,nd) ;
-temp_het2 = reshape(het[.,2],n,nd)~reshape(het[.,2],n,nd)~reshape(het[.,2],n,nd)~reshape(het[.,2],n,nd) ;
+temp_het1 = reshape(het[.,1],n,nd)~reshape(het[.,1],n,nd)~reshape(het[.,1],n,nd)~reshape(het[.,1],n,nd)~reshape(het[.,1],n,nd) ;
+temp_het2 = reshape(het[.,2],n,nd)~reshape(het[.,2],n,nd)~reshape(het[.,2],n,nd)~reshape(het[.,2],n,nd)~reshape(het[.,2],n,nd) ;
 
-temp_co =  co[.,2:5]*~ones(n,nd) ; /* without context 1 */
-temp_ones =  ones(4,1).*.eye(nd) ;
+temp_co = context*~ones(n,nd) ; 
+temp_ones =  ones(5,1).*.eye(nd) ;
 temp_one = ones(n,nd) ;
 
 /***************************************************************************************
@@ -211,67 +85,67 @@ temp_one = ones(n,nd) ;
 ****************************************************************************************/
 /* procedure for log likelihood function calculation */
 
-clear temp_nhet_1, temp_nhet_2, temp6, temp7, vcv, nhet, vcv1, nhet_2 ; 
-clear e, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, ch1 ;
-clear e_con1, e1_con1, e2_con1, e3_con1, e4_con1, e5_con1, e6_con1, e7_con1, e8_con1, e9_con1, e10_con1, e11_con1, ch1_con1 ;
-clear hll, lnp, ss, kk, ppp, pp, ii, nhet, zzz, loc1, loc, ideal1, ideal, temp1, temp2, temp3, temp4 ;
+clear temp_nhet_1, temp_nhet_2, temp_nhet_3, temp6, temp7, temp8, vcv1, nhet_2 ; 
+clear e, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, ch1, ch2 ;
+clear e_con1, e1_con1, e2_con1, e3_con1, e4_con1, e5_con1, e6_con1, e7_con1, e8_con1, e9_con1, e10_con1, e11_con1, ch1_con1, ch2_con1 ;
+clear hll, lnp, ss, kk, ppp, pp, ii, nhet, zzz, loc1, loc2, loc, ideal1, ideal2, ideal, temp1, temp2 ;
 
-proc lpr(x); 
-    temp_nhet_1 = ((1|x[1:3])'.*.temp_one).*temp_het1 + (1|x[4:6])'.*.temp_one ; 
-    temp_nhet_2 = ((1|x[1:3])'.*.temp_one).*temp_het2 + (1|x[7:9])'.*.temp_one ; 
-    temp6 = (temp_co.*temp_nhet_1)*temp_ones ;   /* n by nd */ 
-    temp7 = (temp_co.*temp_nhet_2)*temp_ones ;   /* n by nd */
-    temp6 = abs(temp6) ;
-    temp7 = abs(temp7) ;
-
-    vcv = (x[10]~zeros(1,9))|(x[11]~x[12]~zeros(1,8))|(x[13]~x[14]~x[15]~zeros(1,7))|(x[16]~x[17]~x[18]~x[19]~zeros(1,6))|(x[20]~x[21]~x[22]~x[23]~x[24]~zeros(1,5))|(x[25]~x[26]~x[27]~x[28]~x[29]~x[30]~zeros(1,4))|(x[31]~x[32]~x[33]~x[34]~x[35]~x[36]~x[37]~zeros(1,3))|(x[38]~x[39]~x[40]~x[41]~x[42]~x[43]~x[44]~x[45]~zeros(1,2))|(x[46]~x[47]~x[48]~x[49]~x[50]~x[51]~x[52]~x[53]~x[54]~zeros(1,1))|(x[55]~x[56]~x[57]~x[58]~x[59]~x[60]~x[61]~x[62]~x[63]~x[64]) ;
-    nhet = het_1*vcv;
+proc fct(x) ;
+    temp_nhet_1 = ((x[1]|x[2]|x[3]|x[4]|(ln(2))^(1/2))'.*.temp_one).*temp_het1 + (x[9]|x[10]|x[11]|x[12]|(-ln(2)/2))'.*.temp_one ;     
+    temp_nhet_2 = ((x[5]|x[6]|x[7]|x[8]|(ln(2))^(1/2))'.*.temp_one).*temp_het2 + (x[13]|x[14]|x[15]|x[16]|(-ln(2)/2))'.*.temp_one ;  
+    temp6 = (temp_co.*exp(temp_nhet_1))*temp_ones ;   
+    temp7 = (temp_co.*exp(temp_nhet_2))*temp_ones ;   
+    temp8 = (temp_co.*exp(temp_nhet_2))*temp_ones ;
     
-    vcv1 = (x[75]~zeros(1,3))|(x[76]~x[77]~zeros(1,2))|(x[78]~x[79]~x[80]~zeros(1,1))|(x[81]~x[82]~x[83]~x[84]) ;
-    nhet_2 = het_2*vcv1 ;
-
-    temp1 = x[85] + reshape(nhet_2[.,1], n, nd) ;
-    temp2 = x[86] + reshape(nhet_2[.,2], n, nd) ;
-    temp3 = x[87] + reshape(nhet_2[.,3], n, nd) ;
-    temp4 = x[88] + reshape(nhet_2[.,4], n, nd) ;
+    temp1 = x[17] ;
+    temp2 = x[18] ;
  
 /* segment 1 */
-    loc1 = (x[89:98]|0)~(x[99:107]|0|0) ; 
-    ideal1 = (1|x[108:111])~(1|x[112:115]) ;
+    loc1 = (x[29:38]|0)~(x[39:47]|0|0)~(x[48:55]|0|0|0) ;   
+    ideal1 = (x[83:86]|0)~(x[87:90]|0)~(x[91:94]|0) ;
+
     loc = loc1 ;
     ideal = ideal1 ;        
-   
-    e1_con1 = exp( (x[65]+reshape(nhet[.,1],n,nd)) + lad[.,1].*temp1 + nad[.,1].*temp2 + alcohol[.,1].*temp3 + calorie[.,1].*temp4 ) ;
-    e2_con1 = exp( (x[66]+reshape(nhet[.,1],n,nd)) + lad[.,2].*temp1 + nad[.,2].*temp2 + alcohol[.,2].*temp3 + calorie[.,2].*temp4 ) ;
-    e3_con1 = exp( (x[67]+reshape(nhet[.,1],n,nd)) + lad[.,3].*temp1 + nad[.,3].*temp2 + alcohol[.,3].*temp3 + calorie[.,3].*temp4 ) ;
-    e4_con1 = exp( (x[68]+reshape(nhet[.,1],n,nd)) + lad[.,4].*temp1 + nad[.,4].*temp2 + alcohol[.,4].*temp3 + calorie[.,4].*temp4 ) ;
-    e5_con1 = exp( (x[69]+reshape(nhet[.,1],n,nd)) + lad[.,5].*temp1 + nad[.,5].*temp2 + alcohol[.,5].*temp3 + calorie[.,5].*temp4 ) ;
-    e6_con1 = exp( (x[70]+reshape(nhet[.,1],n,nd)) + lad[.,6].*temp1 + nad[.,6].*temp2 + alcohol[.,6].*temp3 + calorie[.,6].*temp4 ) ;
-    e7_con1 = exp( (x[71]+reshape(nhet[.,1],n,nd)) + lad[.,7].*temp1 + nad[.,7].*temp2 + alcohol[.,7].*temp3 + calorie[.,7].*temp4 ) ;
-    e8_con1 = exp( (x[72]+reshape(nhet[.,1],n,nd)) + lad[.,8].*temp1 + nad[.,8].*temp2 + alcohol[.,8].*temp3 + calorie[.,8].*temp4 ) ;
-    e9_con1 = exp( (x[73]+reshape(nhet[.,1],n,nd)) + lad[.,9].*temp1 + nad[.,9].*temp2 + alcohol[.,9].*temp3 + calorie[.,9].*temp4 ) ;
-    e10_con1 = exp( (x[74]+reshape(nhet[.,1],n,nd)) + lad[.,10].*temp1 + nad[.,10].*temp2 + alcohol[.,10].*temp3 + calorie[.,10].*temp4 ) ;
-    e11_con1 = exp(0 + lad[.,11].*temp1 + nad[.,11].*temp2 + alcohol[.,11].*temp3 + calorie[.,11].*temp4 ) ;
-
-    e_con1 = e1_con1+e2_con1+e3_con1+e4_con1+e5_con1+e6_con1+e7_con1+e8_con1+e9_con1+e10_con1+e11_con1 ;
-    ch1_con1 = (choi[.,1].*(e1_con1./e_con1)) + (choi[.,2].*(e2_con1./e_con1)) + (choi[.,3].*(e3_con1./e_con1)) + (choi[.,4].*(e4_con1./e_con1)) + (choi[.,5].*(e5_con1./e_con1)) + (choi[.,6].*(e6_con1./e_con1)) + (choi[.,7].*(e7_con1./e_con1)) + (choi[.,8].*(e8_con1./e_con1)) + (choi[.,9].*(e9_con1./e_con1)) + (choi[.,10].*(e10_con1./e_con1)) + (choi[.,11].*(e11_con1./e_con1)) ; 
     
-    e1 = exp( (x[65]+reshape(nhet[.,1],n,nd)) - ((loc[1,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[1,2] - ideal[chois[.,1],2])^2).*temp7 + lad[.,1].*temp1 + nad[.,1].*temp2 + alcohol[.,1].*temp3 + calorie[.,1].*temp4 ) ;
-    e2 = exp( (x[66]+reshape(nhet[.,1],n,nd)) - ((loc[2,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[2,2] - ideal[chois[.,1],2])^2).*temp7 + lad[.,2].*temp1 + nad[.,2].*temp2 + alcohol[.,2].*temp3 + calorie[.,2].*temp4 ) ;
-    e3 = exp( (x[67]+reshape(nhet[.,1],n,nd)) - ((loc[3,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[3,2] - ideal[chois[.,1],2])^2).*temp7 + lad[.,3].*temp1 + nad[.,3].*temp2 + alcohol[.,3].*temp3 + calorie[.,3].*temp4 ) ;
-    e4 = exp( (x[68]+reshape(nhet[.,1],n,nd)) - ((loc[4,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[4,2] - ideal[chois[.,1],2])^2).*temp7 + lad[.,4].*temp1 + nad[.,4].*temp2 + alcohol[.,4].*temp3 + calorie[.,4].*temp4 ) ;
-    e5 = exp( (x[69]+reshape(nhet[.,1],n,nd)) - ((loc[5,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[5,2] - ideal[chois[.,1],2])^2).*temp7 + lad[.,5].*temp1 + nad[.,5].*temp2 + alcohol[.,5].*temp3 + calorie[.,5].*temp4 ) ;
-    e6 = exp( (x[70]+reshape(nhet[.,1],n,nd)) - ((loc[6,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[6,2] - ideal[chois[.,1],2])^2).*temp7 + lad[.,6].*temp1 + nad[.,6].*temp2 + alcohol[.,6].*temp3 + calorie[.,6].*temp4 ) ;
-    e7 = exp( (x[71]+reshape(nhet[.,1],n,nd)) - ((loc[7,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[7,2] - ideal[chois[.,1],2])^2).*temp7 + lad[.,7].*temp1 + nad[.,7].*temp2 + alcohol[.,7].*temp3 + calorie[.,7].*temp4 ) ;
-    e8 = exp( (x[72]+reshape(nhet[.,1],n,nd)) - ((loc[8,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[8,2] - ideal[chois[.,1],2])^2).*temp7 + lad[.,8].*temp1 + nad[.,8].*temp2 + alcohol[.,8].*temp3 + calorie[.,8].*temp4 ) ;
-    e9 = exp( (x[73]+reshape(nhet[.,1],n,nd)) - ((loc[9,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[9,2] - ideal[chois[.,1],2])^2).*temp7 + lad[.,9].*temp1 + nad[.,9].*temp2 + alcohol[.,9].*temp3 + calorie[.,9].*temp4 ) ;
-    e10 = exp( (x[74]+reshape(nhet[.,1],n,nd)) - ((loc[10,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[10,2] - ideal[chois[.,1],2])^2).*temp7 + lad[.,10].*temp1 + nad[.,10].*temp2 + alcohol[.,10].*temp3 + calorie[.,10].*temp4 ) ;
-    e11 = exp(0 + lad[.,11].*temp1 + nad[.,11].*temp2 + alcohol[.,11].*temp3 + calorie[.,11].*temp4 ) ;
-
+    e1 = exp( x[19] - ((loc[1,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[1,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[1,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,1].*temp1 + nad[.,1].*temp2 ) ;
+    e2 = exp( x[20] - ((loc[2,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[2,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[2,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,2].*temp1 + nad[.,2].*temp2 ) ;
+    e3 = exp( x[21] - ((loc[3,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[3,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[3,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,3].*temp1 + nad[.,3].*temp2 ) ;
+    e4 = exp( x[22] - ((loc[4,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[4,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[4,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,4].*temp1 + nad[.,4].*temp2 ) ;
+    e5 = exp( x[23] - ((loc[5,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[5,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[5,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,5].*temp1 + nad[.,5].*temp2 ) ;
+    e6 = exp( x[24] - ((loc[6,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[6,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[6,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,6].*temp1 + nad[.,6].*temp2 ) ;
+    e7 = exp( x[25] - ((loc[7,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[7,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[7,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,7].*temp1 + nad[.,7].*temp2 ) ;
+    e8 = exp( x[26] - ((loc[8,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[8,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[8,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,8].*temp1 + nad[.,8].*temp2 ) ;
+    e9 = exp( x[27] - ((loc[9,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[9,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[9,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,9].*temp1 + nad[.,9].*temp2 ) ;
+    e10 = exp( x[28] - ((loc[10,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[10,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[10,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,10].*temp1 + nad[.,10].*temp2 ) ;
+    e11 = exp(0 - ((0 - ideal[chois[.,1],1])^2).*temp6 - ((0 - ideal[chois[.,1],2])^2).*temp7 - ((0 - ideal[chois[.,1],3])^2).*temp8 + lad[.,11].*temp1 + nad[.,11].*temp2 ) ;
+    
     e = e1+e2+e3+e4+e5+e6+e7+e8+e9+e10+e11 ;
     ch1 = (choi[.,1].*(e1./e)) + (choi[.,2].*(e2./e)) + (choi[.,3].*(e3./e)) + (choi[.,4].*(e4./e)) + (choi[.,5].*(e5./e)) + (choi[.,6].*(e6./e)) + (choi[.,7].*(e7./e)) + (choi[.,8].*(e8./e)) + (choi[.,9].*(e9./e)) + (choi[.,10].*(e10./e)) + (choi[.,11].*(e11./e)) ;
 
-    ss = 1 ;
+/* segment 2 */
+    loc2 = (x[56:65]|0)~(x[66:74]|0|0)~(x[75:82]|0|0|0) ;
+    ideal2 = (x[95:98]|0)~(x[99:102]|0)~(x[103:106]|0) ;
+
+    loc = loc2 ;
+    ideal = ideal2 ;        
+    
+    e1 = exp( x[19] - ((loc[1,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[1,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[1,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,1].*temp1 + nad[.,1].*temp2 ) ;
+    e2 = exp( x[20] - ((loc[2,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[2,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[2,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,2].*temp1 + nad[.,2].*temp2 ) ;
+    e3 = exp( x[21] - ((loc[3,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[3,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[3,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,3].*temp1 + nad[.,3].*temp2 ) ;
+    e4 = exp( x[22] - ((loc[4,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[4,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[4,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,4].*temp1 + nad[.,4].*temp2 ) ;
+    e5 = exp( x[23] - ((loc[5,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[5,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[5,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,5].*temp1 + nad[.,5].*temp2 ) ;
+    e6 = exp( x[24] - ((loc[6,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[6,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[6,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,6].*temp1 + nad[.,6].*temp2 ) ;
+    e7 = exp( x[25] - ((loc[7,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[7,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[7,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,7].*temp1 + nad[.,7].*temp2 ) ;
+    e8 = exp( x[26] - ((loc[8,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[8,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[8,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,8].*temp1 + nad[.,8].*temp2 ) ;
+    e9 = exp( x[27] - ((loc[9,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[9,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[9,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,9].*temp1 + nad[.,9].*temp2 ) ;
+    e10 = exp( x[28] - ((loc[10,1] - ideal[chois[.,1],1])^2).*temp6 - ((loc[10,2] - ideal[chois[.,1],2])^2).*temp7 - ((loc[10,3] - ideal[chois[.,1],3])^2).*temp8 + lad[.,10].*temp1 + nad[.,10].*temp2 ) ;
+    e11 = exp(0 - ((0 - ideal[chois[.,1],1])^2).*temp6 - ((0 - ideal[chois[.,1],2])^2).*temp7 - ((0 - ideal[chois[.,1],3])^2).*temp8 + lad[.,11].*temp1 + nad[.,11].*temp2 ) ;
+     
+    e = e1+e2+e3+e4+e5+e6+e7+e8+e9+e10+e11 ;
+    ch2 = (choi[.,1].*(e1./e)) + (choi[.,2].*(e2./e)) + (choi[.,3].*(e3./e)) + (choi[.,4].*(e4./e)) + (choi[.,5].*(e5./e)) + (choi[.,6].*(e6./e)) + (choi[.,7].*(e7./e)) + (choi[.,8].*(e8./e)) + (choi[.,9].*(e9./e)) + (choi[.,10].*(e10./e)) + (choi[.,11].*(e11./e)) ;
+    
+    ss = (exp(x[107])|1) ; 
+    ss = ss/sumc(ss) ;
 
     hll = zeros(np,ns) ;
     kk = 1 ;
@@ -280,51 +154,49 @@ proc lpr(x);
     ii = 1 ;
     do until ii == n+1 ;
         if id[ii,1] ne pp ;
-            if chois[ii,1] == 1;
-               hll[ppp,1] = ln(meanc((((prodc(ch1_con1[kk:ii-1,.])))))) ;
-            else ;
-               hll[ppp,1] = ln(meanc((((prodc(ch1[kk:ii-1,.])))))) ; 
-            endif;
+            hll[ppp,1] = ln(meanc((((prodc(ch1[kk:ii-1,.])))))) ;
+            hll[ppp,2] = ln(meanc((((prodc(ch2[kk:ii-1,.])))))) ;
             kk = ii ;
             ppp= ppp+1 ;
             pp = id[ii,1] ;
         endif ;
-        if ii == n ;
-            if chois[ii,1] == 1;
-               hll[ppp,1] = ln(meanc((((prodc(ch1_con1[kk:ii-1,.])))))) ;
-            else ;
-               hll[ppp,1] = ln(meanc((((prodc(ch1[kk:ii-1,.])))))) ; 
-            endif;
+        if ii == n ;            
+            hll[ppp,1] = ln(meanc((((prodc(ch1[kk:ii-1,.])))))) ;
+            hll[ppp,2] = ln(meanc((((prodc(ch2[kk:ii-1,.])))))) ;
         endif ;
         ii = ii+1 ;
     endo ;
     zzz = x ;
 
     lnp = ln(exp(hll)*ss) ;
-    retp(-sumc(lnp)) ;
+    retp(-sumc(lnp)) ; 
 endp;
 
-
 /***************************************************************************************
- 5. Print estimate results                                  
+ 5. Constraints                      
 ****************************************************************************************/
 
-/** load x0[118,1] = x_seg1_2.txt ; **/
-x0 = (0.001)*ones(115,1);
-_opalgr = 2;
-__output = 1;
-output file = jointmiller_MS_d2_seg1_abs_3v_2017.out on;
-{x,f,g,retcode} = optprt(optmum(&lpr,x0));
-x~sqrt(diag(inv(_opfhess)));
+proc ineqp(x);
+   retp((2.70)*ones(8,1) - (x[1]|x[2]|x[3]|x[4]|x[5]|x[6]|x[7]|x[8])) ;
+   retp((x[1]|x[2]|x[3]|x[4]|x[5]|x[6]|x[7]|x[8]) - (1e-5)*ones(8,1)) ;
+endp;
 
-print;
-x~sqrt(diag(inv(_opfhess)))~(x./sqrt(diag(inv(_opfhess))));
- 
-print;
-mpar;
+_co_IneqProc = &ineqp ;
+_co_Options = { BFGS STEPBT TRUST FORWARD FILE } ; /* 1 BFGS, 2 DFP, 3 NEWTON, 4 scaled BFGS, 5 scaled DFP */
 
-print;
-2*lpr(x)+rows(x)*ln(n);
+/**************************************************************************************
+ 6. Print estimate results                             
+***************************************************************************************/
+/* load x0[107,1] = x0_ln_107.txt ; */ 
+x0 = (0.001)*ones(107,1) ; 
 
-output off;
-end;
+output file = context_normal_co_new_(K3).out on ;
+{ x,f,g,retcode } = co(&fct,x0) ; /* {x,f,g,retcode} = optprt(optmum(&lpr,x0)) */
+call coprt(x,f,g,retcode) ;
+
+print ;
+2*fct(x)+rows(x)*ln(n) ;
+
+output off ;
+end ;
+
