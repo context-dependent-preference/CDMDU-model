@@ -79,7 +79,7 @@ temp_ones =  ones(5,1).*.eye(nd) ;
 temp_one = ones(n,nd) ;
 
 /***************************************************************************************
- 3. Set utility function (see Chapter 3. Model Formulation-Properties of the proposed model specification) 
+ 3. Set utility function 
 - We can get 86 model parameters in the formulation are allowed to vary across users, which belongs to 2-segements.                                   
 ****************************************************************************************/
 clear temp_nhet_1, temp_nhet_2, temp6, temp7, vcv1, nhet_2 ; 
