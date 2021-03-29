@@ -1,12 +1,8 @@
 /******************************************************************************
     Mapping Consumers’ Context-Dependent Consumption Preferences: 
     A Multidimensional Unfolding Approach 
-    (3rd revision, Journal of Consumer Resesarch)
-
-    Update: 2019.09.15 (context.dependent.preference@gmail.com)
-    Keywords: Context-dependent preference, multiple ideal points, factor structure approach, 
-                 context-dependent multidimensional unfolding (CDMDU) model, context-dependent iso-preference contours
-******************************************************************************   
+    (Last updated on Feb 28, 2021)
+  
 ******************************************************************************/
 
 /******************************************************************************
@@ -218,9 +214,3 @@ print ;
 
 output off ;
 end ;
-
-/**************************************************************************************
- 6. Generate CDMDU-joint space map for a segment
-- From output parameters, we draw joint space map vary by 5 contexts for each segment.
-  : see Figure 4-1, 4-2 in Chapter 4.2.4 Empirical results                     
-***************************************************************************************/
